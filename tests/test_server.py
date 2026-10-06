@@ -86,3 +86,5 @@ async def test_errors_are_readable(tmp_path):
         missing = await call(client, "debugger_start", program=str(tmp_path / "missing"))
         assert "program not found" in missing
         assert "nothing to do" in await call(client, "debugger_terminate", session_id="nope")
+        multi = await call(client, "debugger_command", session_id="nope", command="bt\nkill")
+        assert "one command per call" in multi

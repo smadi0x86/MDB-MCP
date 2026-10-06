@@ -129,6 +129,8 @@ async def debugger_command(
     """
 
     def run() -> str:
+        if "\n" in command.strip():
+            raise DebuggerError("send one command per call (the command contains a newline)")
         return sessions.get(session_id).execute(command, timeout)
 
     return await _in_thread(run)
