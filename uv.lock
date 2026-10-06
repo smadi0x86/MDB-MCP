@@ -208,8 +208,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mcp", specifier = ">=1.12.2" },
-    { name = "pygdbmi", specifier = ">=0.11.0.0" },
+    { name = "mcp", specifier = ">=1.12.2,<2" },
+    { name = "pygdbmi", specifier = ">=0.11.0.0,<1" },
 ]
 
 [package.metadata.requires-dev]

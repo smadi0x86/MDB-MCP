@@ -18,8 +18,8 @@ classifiers = [
     "Topic :: Software Development :: Debuggers",
 ]
 dependencies = [
-    "mcp>=1.12.2",
-    "pygdbmi>=0.11.0.0",
+    "mcp>=1.12.2,<2",
+    "pygdbmi>=0.11.0.0,<1",
 ]
 
 [project.scripts]
