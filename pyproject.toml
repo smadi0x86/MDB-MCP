@@ -1,31 +1,61 @@
 [project]
-name = "gdb-mcp"
-version = "0.1.0"
-description = "A Model Context Protocol server for GDB debugging functionality"
-authors = [
-    {name = "smadi0x86", email = "smadi0x86dev@gmail.com"}
-]
+name = "mdb-mcp"
+version = "0.2.0"
+description = "MCP server that lets AI assistants drive GDB and LLDB debugging sessions"
+authors = [{ name = "smadi0x86", email = "smadi0x86dev@gmail.com" }]
 readme = "README.md"
-requires-python = ">=3.11"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+keywords = ["mcp", "gdb", "lldb", "debugger", "model-context-protocol"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Debuggers",
+]
 dependencies = [
     "mcp>=1.12.2",
-    "mcp[cli]>=1.10.1",
     "pygdbmi>=0.11.0.0",
-    "pytest>=8.4.1",
-    "pytest-asyncio>=1.0.0",
 ]
 
+[project.scripts]
+mdb-mcp = "mdb_mcp.server:main"
+
 [project.urls]
-Homepage = "https://github.com/smadi0x86/gdb-mcp"
-Repository = "https://github.com/smadi0x86/gdb-mcp"
+Homepage = "https://github.com/smadi0x86/MDB-MCP"
+Repository = "https://github.com/smadi0x86/MDB-MCP"
+Issues = "https://github.com/smadi0x86/MDB-MCP/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.0.0",
+    "ruff>=0.6",
+]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["modules"]
-include = [
-    "server.py",
-    "modules/",
+packages = ["mdb_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "gdb: needs GDB installed",
+    "lldb: needs LLDB with working Python support",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
