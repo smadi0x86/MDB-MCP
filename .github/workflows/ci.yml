@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --only-group dev ruff check .
+      - run: uv run --only-group dev ruff format --check .
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: "3.10"
+          - os: ubuntu-latest
+            python: "3.13"
+          - os: macos-latest
+            python: "3.13"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install debuggers
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y gdb lldb python3-lldb
+      - name: Show debuggers
+        run: uv run python -c "from mdb_mcp.backends import detect; print(detect('gdb')); print(detect('lldb'))"
+      - run: uv run pytest -v

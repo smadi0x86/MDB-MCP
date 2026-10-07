@@ -1,158 +1,173 @@
-[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/smadi0x86-mdb-mcp-badge.png)](https://mseep.ai/app/smadi0x86-mdb-mcp)
+# MDB-MCP
 
-# Multi-Debugger MCP Server (LLDB and GDB)
+[![CI](https://github.com/smadi0x86/MDB-MCP/actions/workflows/ci.yml/badge.svg)](https://github.com/smadi0x86/MDB-MCP/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
-A Model Context Protocol server that provides debugging functionality for both GDB and LLDB debuggers, for use with Claude Desktop, VSCode Copilot, or other AI assistants.
+An MCP server that lets AI assistants debug native programs with **GDB** or **LLDB**.
+Your assistant sets breakpoints, runs the program, inspects memory and registers, and
+reads backtraces using ordinary debugger commands.
 
 <p align="center">
-  <img src="images/gdb-mcp.png" alt="GDB MCP Server" width="600">
+  <img src="images/demo.svg" alt="An assistant using mdb-mcp to find a NULL pointer dereference" width="720">
 </p>
 
-## Quick Start
+- **Both debuggers, one interface.** GDB on Linux and LLDB on macOS are picked
+  automatically, and either can be requested explicitly.
+- **Handles real programs.** Execution commands wait until the target stops, slow
+  or looping programs can be interrupted, and the program's output is kept apart
+  from debugger output.
+- **Small tool surface.** Five tools. Everything else is a normal GDB or LLDB
+  command, which models already know well.
+
+## Requirements
+
+- [uv](https://docs.astral.sh/uv/)
+- GDB and/or LLDB
+  - **Linux:** `sudo apt install gdb`. For LLDB: `sudo apt install lldb python3-lldb`
+  - **macOS:** LLDB comes with the Xcode Command Line Tools (`xcode-select --install`)
+
+## Setup
+
+The server runs over stdio. Point your MCP client at `uvx`:
+
+### Claude Code
+
+```bash
+claude mcp add mdb -- uvx --from git+https://github.com/smadi0x86/MDB-MCP mdb-mcp
+```
+
+### Claude Desktop, Cursor, Windsurf
+
+```json
+{
+  "mcpServers": {
+    "mdb": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/smadi0x86/MDB-MCP", "mdb-mcp"]
+    }
+  }
+}
+```
+
+### VS Code
+
+In `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "mdb": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/smadi0x86/MDB-MCP", "mdb-mcp"]
+    }
+  }
+}
+```
+
+On Windows with WSL, use `"command": "wsl"` and put the full path to `uvx` first in `args`.
+
+### From a local checkout
+
+```bash
+git clone https://github.com/smadi0x86/MDB-MCP && cd MDB-MCP
+uv sync
+```
+
+Then use `"command": "uv", "args": ["run", "--directory", "/path/to/MDB-MCP", "mdb-mcp"]`.
+
+## Tools
+
+| Tool | What it does |
+|------|--------------|
+| `debugger_status` | Shows which debuggers are usable (and why not) and lists active sessions |
+| `debugger_start` | Starts a session (`debugger`: `auto`, `gdb` or `lldb`), optionally loading a `program` with `args` |
+| `debugger_command` | Runs any GDB or LLDB command. Execution commands wait up to `timeout` seconds for the target to stop |
+| `debugger_interrupt` | Pauses a running target, like Ctrl-C, and shows where it stopped |
+| `debugger_terminate` | Kills the program and closes the session |
+
+Active sessions are also available as the `debugger://sessions` resource.
+
+## Try it
+
+```bash
+make -C examples
+```
+
+Then ask your assistant:
+
+> Load `/path/to/MDB-MCP/examples/crash` in the debugger, run it, and tell me why it crashes.
+
+See [examples/](examples) for more prompts.
+
+## Configuration
+
+| Variable | Purpose |
+|----------|---------|
+| `MDB_GDB_PATH` | GDB binary to use, e.g. `gdb-multiarch` (default: `gdb` on `PATH`) |
+| `MDB_LLDB_PATH` | LLDB binary to use (default: `lldb` on `PATH`, then Xcode, then Homebrew LLVM) |
+
+GDB loads your `~/.gdbinit`, so extensions such as pwndbg or GEF stay available.
+
+## How it works
+
+- **GDB** runs under its machine interface (GDB/MI) through
+  [pygdbmi](https://github.com/cs01/pygdbmi). The debugged program gets its own
+  pseudo-terminal, so its output never mixes with GDB's protocol stream and it
+  cannot read input meant for GDB.
+- **LLDB** runs as a separate `lldb` process with a small worker loaded into its
+  embedded Python. The `lldb` module always matches the Python it was built for,
+  and an LLDB crash cannot take the server down with it.
+
+## Troubleshooting
+
+**LLDB shows as unavailable.** Ask your assistant to run `debugger_status`, or run:
+
+```bash
+uv run python -c "from mdb_mcp.backends import detect; print(detect('lldb'))"
+```
+
+On Debian and Ubuntu, LLDB's Python support is a separate package (`python3-lldb`).
+It must match your LLDB version.
+
+**The program needs input.** The target's terminal is not connected to anything
+you can type into. Use `run < input.txt` (GDB) or `process launch -i input.txt` (LLDB).
+
+**Attaching to a running process fails on Linux.** Check
+`/proc/sys/kernel/yama/ptrace_scope`. A value of `1` only allows debugging your own
+child processes.
+
+## Security
+
+Debugger commands are powerful: GDB's `shell` and `python` commands, LLDB's
+`platform shell` and `script`, and the programs you run all execute with your user's
+permissions. Only debug programs you trust, and keep your client's tool-approval
+prompts on for `debugger_command` unless you are working in a sandbox.
+
+## Development
 
 ```bash
 uv sync
-uv venv
-uv run server.py
+uv run pytest           # GDB and LLDB tests skip if that debugger is not installed
+uv run ruff check . && uv run ruff format --check .
 ```
 
-## Integration
-
-Note that you can use `uv run` to run the server.py script or you can use `uv venv` to create a virtual environment and then run `/home/youruser/dev/personal/GDB-MCP/.venv/bin/python /home/youruser/dev/personal/GDB-MCP/server.py`.
-
-### Claude Desktop
-
-Add to your `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "gdb": {
-      "command": "uv",
-      "args": ["run", "/home/youruser/dev/personal/GDB-MCP/server.py"],
-      "disabled": false
-    }
-  }
-}
-```
-
-### VSCode Copilot
-
-If you're using WSL:
-
-```json
- "mcp": {
-    "servers": {
-      "my-mcp-server-4dc36648": {
-        "type": "stdio",
-        "command": "wsl",
-        "args": [
-          "/home/youruser/dev/personal/GDB-MCP/.venv/bin/python",
-          "/home/youruser/dev/personal/GDB-MCP/server.py"
-        ]
-      }
-    }
-  }
-```
-
-If you're not using WSL:
-
-```json
-  "mcp": {
-    "servers": {
-      "my-mcp-server-db89eee1": {
-        "type": "stdio",
-        "command": "/home/youruser/dev/personal/GDB-MCP/.venv/bin/python",
-        "args": ["/home/youruser/dev/personal/GDB-MCP/server.py"]
-      }
-    }
-  }
-```
-
-### Windsurf
-
-```json
-{
-  "mcpServers": {
-    "debugger-mcp": {
-      "command": "python3",
-      "args": ["/Users/youruser/dev/GDB-MCP/server.py"]
-    }
-  }
-}
-```
-
-## Experimental LLDB Support (macOS)
-
-This project includes experimental native LLDB support alongside GDB, with automatic debugger selection.
-
-<p align="center">
-  <img src="images/multi-debugger.png" alt="Multi-Debugger MCP Server" width="600">
-</p>
-
-### Installation
-
-To enable LLDB support on macOS, install LLVM (which includes LLDB) and python via Homebrew:
+The demo at the top is recorded from real tool calls:
 
 ```bash
-# Install LLDB for supporting python3.14 bindings
-brew install llvm python3
-
-# Install MCP and debugging dependencies
-pip3 install mcp pygdbmi --break-system-packages
+make -C examples
+uv run python demo/record.py
+npx svg-term-cli --in demo/demo.cast --out images/demo.svg --window --no-cursor --padding 18
 ```
 
-## Available Tools
+### Upgrading from 0.1
 
-### Unified Tools
-
-- `debugger_status()`: Show available debuggers and their status
-- `debugger_start()`: Start debugging session with auto-detected debugger
-- `debugger_terminate(session_id)`: Terminate debugging session
-- `debugger_list_sessions()`: List all active debugging sessions
-- `debugger_command(session_id, command)`: Execute debugger command
-
-### LLDB Tools
-
-- `lldb_start()`: Start new LLDB debugging session
-- `lldb_terminate(session_id)`: Terminate LLDB debugging session
-- `lldb_list_sessions()`: List all active LLDB sessions
-- `lldb_command(session_id, command)`: Execute arbitrary LLDB command
-
-### GDB Tools
-
-- `gdb_start(gdb_path)`: Start new GDB debugging session
-- `gdb_terminate(session_id)`: Terminate GDB debugging session
-- `gdb_list_sessions()`: List all active GDB sessions
-- `gdb_command(session_id, command)`: Execute any GDB command
-
-> Use `*_command()` functions for all advanced debugger operations, your LLM client should already know how to use it, but it doesn't hurt to mention it.
-
-### Checking Status
-
-You can verify debugger availability:
-
-```python
-from modules.lldb import LLDBSessionManager
-from modules.gdb import GDBSessionManager
-
-print("LLDB available:", LLDBSessionManager.is_available())
-print("GDB available:", GDBSessionManager.is_available())
-```
-
-## Testing
-
-```bash
-uv run python run-tests.py --check-deps
-uv run python run-tests.py --type all
-```
-
-## Examples
-
-Check the `examples` directory for example prompts.
-
-> Example binaries are compiled to `arm64` and `amd64`, pick the one that matches your system architecture.
+Version 0.2 replaces the per-debugger tools (`gdb_start`, `gdb_command`,
+`lldb_start`, `lldb_command`, ...) with the five `debugger_*` tools above. Old
+configs that run `server.py` still work, but `mdb-mcp` is the supported entry point.
 
 ## License
 
-This project is licensed under the GNU Version 3.0 License, see the LICENSE file for details.
+GPL-3.0. See [LICENSE](LICENSE).
+
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/smadi0x86-mdb-mcp-badge.png)](https://mseep.ai/app/smadi0x86-mdb-mcp)

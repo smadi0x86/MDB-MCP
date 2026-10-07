@@ -1,19 +1,20 @@
-# Example Program
+# Examples
 
-This directory contains example program to load into GDB using an LLM client.
+Two small C programs to try the server with.
 
-## example.c
+| Program     | What it does                                              |
+|-------------|-----------------------------------------------------------|
+| `example.c` | Computes a factorial recursively. Good for stepping and backtraces. |
+| `crash.c`   | Looks up users by name and crashes on a missing one (NULL dereference). |
 
-A simple C program that calculates factorials.
-
-## Compiling
+Build both with debug info:
 
 ```bash
-gcc -g -o example example.c
+make -C examples
 ```
 
-The `-g` flag includes debugging information needed for GDB.
+Then ask your assistant something like:
 
-## Example Prompt
+> Load `/absolute/path/to/examples/crash` in the debugger, run it, and tell me why it crashes.
 
-Check the PROMPT.txt file for an example prompt to use with the LLM client.
+> Debug `/absolute/path/to/examples/example`: break on `factorial`, continue until `n == 1`, and show the backtrace.
