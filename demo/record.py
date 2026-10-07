@@ -6,7 +6,7 @@ question and the final explanation are scripted.
 
     make -C examples
     uv run python demo/record.py
-    npx svg-term-cli --in demo/demo.cast --out images/demo.svg --window --no-cursor
+    npx svg-term-cli --in demo/demo.cast --out images/demo.svg --window --no-cursor --padding 18
 """
 
 import asyncio
@@ -26,11 +26,10 @@ WIDTH, HEIGHT = 88, 34
 RESET, BOLD, DIM = "\x1b[0m", "\x1b[1m", "\x1b[2m"
 CYAN, GREEN, MAGENTA, YELLOW = "\x1b[36m", "\x1b[32m", "\x1b[35m", "\x1b[33m"
 
-QUESTION = "Why does examples/crash segfault?"
+QUESTION = "why does examples/crash segfault?"
 ANSWER = (
-    'find_user() returns NULL when a name is missing. "carol" is not in the users '
-    "array, and main() dereferences the result at crash.c:24 without checking it. "
-    "Handle the NULL case before printing."
+    'u is NULL. find_user() returns NULL for "carol" because she is not in users[], '
+    "and line 24 dereferences it without a check."
 )
 
 
@@ -83,7 +82,6 @@ async def main() -> None:
                 cast.pause(0.9)
                 return text
 
-            cast.out(f"{DIM}mdb-mcp demo · GDB · real tool output{RESET}\n\n")
             cast.pause(0.6)
             cast.out(f"{CYAN}{BOLD}❯{RESET} ")
             cast.type(QUESTION)

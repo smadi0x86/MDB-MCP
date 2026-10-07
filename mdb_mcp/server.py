@@ -100,10 +100,9 @@ async def debugger_start(
             session.close()
             raise
         sessions.add(session)
-        lines = [f"Started {kind} session {session.id} ({detect(kind).version})."]
+        lines = [f"Started {kind} session {session.id}: {detect(kind).version}"]
         if loaded:
             lines.append(loaded)
-        lines.append(f"Use debugger_command with session_id={session.id!r} to run {kind} commands.")
         return "\n".join(lines)
 
     return await _in_thread(start)
